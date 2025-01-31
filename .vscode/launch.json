@@ -1,0 +1,59 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Backend: FastAPI",
+            "type": "python",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "backend.main:app",
+                "--reload",
+                "--port",
+                "8080"
+            ],
+            "jinja": true,
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Frontend: Vite Dev Server",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/frontend",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Full Stack: Backend + Frontend",
+            "type": "node",
+            "request": "launch",
+            "presentation": {
+                "hidden": false,
+                "group": "BluDoc",
+                "order": 1
+            },
+            "preLaunchTask": "start-backend",
+            "cwd": "${workspaceFolder}/frontend",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "console": "integratedTerminal"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Backend + Frontend",
+            "configurations": ["Backend: FastAPI", "Frontend: Vite Dev Server"],
+            "presentation": {
+                "hidden": false,
+                "group": "BluDoc",
+                "order": 2
+            },
+            "stopAll": true
+        }
+    ]
+} 
