@@ -1,81 +1,129 @@
-### **Product Requirements Document (PRD) - Updated**
+Below is an updated version of your PRD that incorporates the new agent functionality, document processing enhancements, and integration of the smolagents framework. You can adjust details as needed.
 
 ---
-#### **Product Name:** BluApp - AI Chat Application
 
-#### **Date:** April 27, 2024
+### **Product Requirements Document (PRD) - BluApp 3.1**
 
-#### **Version:** 3.0
+#### **Product Name:** BluApp – AI Chat Application with Intelligent Agent and Document Analysis  
+#### **Date:** April 27, 2024 (Updated: February 1, 2025)  
+#### **Version:** 3.1
 
 ---
 
 ### **1. Objective**
 
-**Purpose:**
-BluApp is an AI-powered chat application that combines document analysis capabilities with natural conversation. It provides a modern, responsive interface for users to interact with GPT-4, analyze documents, and receive real-time responses.
+#### **Purpose:**
+BluApp is an AI-powered chat application that provides a modern, responsive interface for natural conversation and advanced document analysis. In this version, BluApp extends its functionality with an intelligent Agent—built on the smolagents framework—that not only drives chat interactions but also dynamically generates custom prompts for various document types and processes documents through a dedicated REST API (BluDeltaService).
 
-**Key Objectives:**
-- **Intelligent Chat:** Real-time conversation with GPT-4 for natural interaction.
-- **Document Analysis:** Support for PDF and image processing with text extraction.
-- **Theme Customization:** Dark/Light mode support with system preference detection.
-- **Voice Input:** Enable users to provide voice input directly within the app.
-- **Real-Time Updates:** Provide immediate feedback through WebSocket connections.
-- **Responsive Design:** Offer a clean, modern interface that works across devices.
+#### **Key Objectives:**
+- **Intelligent Multi-Modal Chat:**
+  - Real-time, natural language conversation powered by GPT-4.
+  - Support for both traditional chat and an Agent-based interaction that leverages multiple tools.
+- **Dynamic Prompt Generation:**
+  - Use agent tools to generate custom prompts for specific document types.
+  - Store and manage these custom prompts in a PostgreSQL-backed prompt store.
+- **Advanced Document Analysis:**
+  - Accept documents (PDF, images, etc.) and send them to BluDeltaService.
+  - Extract information and return structured BLUDoc JSON for display.
+- **Enhanced UI/UX:**
+  - Real-time updates via WebSocket.
+  - Theme customization (dark/light mode) with system detection.
+  - Voice input integration for a hands-free experience.
+- **Robust Error Handling and Feedback:**
+  - Provide immediate visual and textual feedback for all operations.
+  - Maintain logs and a step-by-step execution trail (via the smolagents ReAct loop).
 
-**Prototype-Specific Goals:**
-- Focus on core chat and document analysis functionality
-- Ensure smooth user experience with real-time updates
-- Implement robust error handling
-- Provide clear visual feedback for all operations
+#### **Prototype-Specific Goals:**
+- Seamlessly integrate chat and document processing.
+- Utilize the smolagents framework for step-by-step reasoning and tool calling.
+- Ensure clear separation between chat interactions and document analysis workflows.
+- Maintain consistent and robust error handling across all functionalities.
 
 ---
 
 ### **2. Architecture Overview**
 
-The system consists of the following components:
+The system architecture now consists of the following components:
 
 1. **Frontend Application:**
-   - React-based web interface with TypeScript
-   - Real-time WebSocket communication
-   - Client-side file preview and management
-   - Theme management with system preference detection
-   - Voice input handling
+   - **Tech Stack:** React, TypeScript, Tailwind CSS (with Typography), and Heroicons.
+   - **Features:**
+     - Chat interface with real-time WebSocket updates.
+     - File upload/preview for document analysis.
+     - Theme management and voice input support.
+     - Display of BLUDoc JSON results directly in the chat window.
 
-2. **Backend Service:**
-   - FastAPI-based REST API and WebSocket server
-   - Document processing with OCR and PDF text extraction
-   - Integration with OpenAI GPT-4
-   - Real-time error handling and notifications
+2. **Backend Services:**
+   - **BluService (FastAPI-based):**
+     - Handles chat messages and orchestrates agent interactions.
+     - Communicates with the GPT-4 API and smolagents framework.
+     - Manages the prompt store (PostgreSQL) for custom prompts.
+   - **BluDeltaService:**
+     - Dedicated REST API to process documents.
+     - Extracts structured information from documents and returns BLUDoc JSON.
+   - **Document Processing:**
+     - Uses PyPDF2 (for PDF extraction) and PyTesseract (for image OCR).
+   - **Real-Time Communication:**
+     - WebSocket server for instant updates and progress feedback.
 
 3. **OpenAI Integration:**
-   - GPT-4 for intelligent chat responses
-   - Context-aware document analysis
-   - Structured response generation
+   - **GPT-4:**
+     - Provides natural language responses and context-aware processing.
+   - **Voice Processing:**
+     - Client-side Whisper integration for transcription.
 
+4. **Agent Framework:**
+   - **smolagents Framework:**
+     - Implements a multi-step (ReAct) Agent that can perform reasoning and tool calls.
+     - **Agent Capabilities:**
+       - Acts as a traditional chatbot.
+       - Dynamically generates custom prompts for different document types.
+       - Calls BluDeltaService for document analysis.
+     - **Agent Types:**
+       - **ToolCallingAgent:** For JSON-based tool calls.
+       - **CodeAgent:** For code-based execution where needed.
+     - **Tool Integration:**
+       - Tools include custom prompt generation, database interactions (prompt store), and document analysis via REST calls.
+  
 ---
 
 ### **3. System Workflow**
 
 1. **Chat Interaction:**
-   - User sends messages through the chat interface
-   - Messages are processed by GPT-4
-   - Responses are displayed in real-time with markdown support
+   - **User Interaction:**
+     - The user sends messages (or voice input) through the chat interface.
+     - The message is processed by the Agent.
+   - **Agent Operation:**
+     - In a standard case, the Agent uses GPT-4 to generate a direct chat response.
+     - In cases that require additional tools (e.g., custom prompt generation or document analysis), the Agent follows the ReAct loop:
+       - **Reasoning:** The Agent analyzes the task.
+       - **Action:** The Agent makes a tool call (e.g., generate a custom prompt or send a document to BluDeltaService).
+       - **Observation:** The Agent processes the response and iterates if necessary.
+     - The final answer (or BLUDoc JSON) is returned and rendered in the chat window.
 
 2. **Document Processing:**
-   - User uploads PDF or image files
-   - Backend extracts text using appropriate method (OCR/PDF parsing)
-   - Content is analyzed by GPT-4 with original context
-   - Results are presented in the chat interface
+   - **File Upload:**
+     - The user uploads a document (PDF/image).
+   - **Processing Flow:**
+     - The frontend sends the document and instructions to BluService.
+     - BluService decides whether to use the Agent for custom prompt generation or to directly forward the document to BluDeltaService.
+     - If the Agent is to generate a prompt, it uses a tool call (via smolagents) to generate and store the prompt in the PostgreSQL prompt store.
+     - For direct document analysis, BluService forwards the file to BluDeltaService.
+     - BluDeltaService processes the document and returns a BLUDoc JSON.
+   - **Display:**
+     - The extracted information (BLUDoc JSON) is displayed in the chat window.
 
-3. **Theme Management:**
-   - System detects user's preferred theme
-   - Users can manually toggle between dark/light modes
-   - Preference is persisted across sessions
+3. **Theme and Voice Support:**
+   - **Theme Management:**
+     - Detects user’s system preference with options to toggle manually.
+     - Preferences are persisted across sessions.
+   - **Voice Input:**
+     - Users can provide input via voice; client-side Whisper transcribes the voice to text.
+     - Transcription is then processed as a normal text input by the Agent.
 
 4. **Real-Time Updates:**
-   - WebSocket connection maintains real-time status
-   - Error messages are immediately displayed
-   - File processing progress is reflected in UI
+   - **WebSocket Integration:**
+     - Maintains real-time status updates (e.g., file processing progress, error notifications).
 
 ---
 
@@ -83,110 +131,127 @@ The system consists of the following components:
 
 #### **Frontend:**
 - **Framework:** React with TypeScript
-- **Styling:** Tailwind CSS with Typography plugin
+- **Styling:** Tailwind CSS (with Typography plugin)
 - **Icons:** Heroicons
-- **State Management:** React Context
-- **Real-time:** WebSocket client
-- **File Handling:** Client-side preview and upload
+- **Real-time Communication:** WebSocket client
+- **File Handling:** Client-side preview, file upload, and BLUDoc JSON rendering
+- **Voice Input:** Integration with OpenAI Whisper for client-side transcription
 
 #### **Backend:**
 - **Framework:** FastAPI
 - **Document Processing:**
-  - PyTesseract for OCR
-  - PyPDF2 for PDF parsing
-- **Communication:**
-  - REST API endpoints
-  - WebSocket server
-- **AI Integration:** OpenAI GPT-4 API
+  - **OCR:** PyTesseract for image-based text extraction
+  - **PDF Parsing:** PyPDF2 for PDF text extraction
+- **REST API Endpoints:**
+  - Chat and document processing endpoints.
+  - BluDeltaService for document analysis.
+- **Database:** PostgreSQL for storing custom prompts (Prompt Store)
+- **Agent Orchestration:**
+  - Integration of the smolagents framework for multi-step agent reasoning and tool calls.
+
+#### **Agent Framework:**
+- **smolagents Framework:**
+  - **Agent Types:** ToolCallingAgent and CodeAgent.
+  - **Tool Integration:**
+    - Custom prompt generation tools.
+    - Database interaction for prompt storage.
+    - REST client for BluDeltaService document analysis.
+  - **Multi-Step Reasoning:** Follows the ReAct framework (Reason → Act → Observe).
+
+#### **OpenAI Integration:**
+- **GPT-4:** For natural language responses and context-aware processing.
+- **Whisper:** For client-side voice transcription.
 
 ---
 
 ### **5. Features Implementation Status**
 
 #### **5.1. Chat Interface:**
-- ✅ Real-time messaging
+- ✅ Real-time messaging with GPT-4
 - ✅ Markdown rendering
-- ✅ Message history
-- ✅ Auto-scrolling
-- ✅ Error handling
+- ✅ Message history and auto-scrolling
+- ✅ Error handling and logging
+- **New:** Agent-based multi-step reasoning for tool calls
 
 #### **5.2. Document Processing:**
-- ✅ PDF text extraction
-- ✅ Image OCR
-- ✅ File preview
-- ✅ Progress feedback
-- ✅ Error handling
+- ✅ PDF text extraction and image OCR
+- ✅ File preview and upload functionality
+- ✅ BLUDoc JSON display in chat window
+- **New:** Agent tool to generate custom prompts for document types and store them in a prompt store  
+- **New:** Integration with BluDeltaService REST API for advanced document analysis
 
-#### **5.3. Theme Support:**
-- ✅ System preference detection
-- ✅ Manual theme switching
-- ✅ Persistent preferences
-- ✅ Dark mode optimization
+#### **5.3. Theme and Voice Support:**
+- ✅ System preference detection for dark/light mode
+- ✅ Manual theme switching with persisted preferences
+- ✅ Voice input interface (basic recording)
+- 🟡 Client-side transcription integration (Whisper - WIP)
 
-#### **5.4. Voice Input:**
-- ✅ Basic recording interface
-- 🟡 Transcription (WIP)
-- 🟡 Real-time feedback (WIP)
+#### **5.4. Agent Framework:**
+- **New:** Integration of smolagents framework to drive both chat and document analysis workflows.
+- **New:** Support for multi-step reasoning (ReAct loop) for tool calls.
+- **New:** Tools for:
+  - Generating custom prompts based on document type.
+  - Interacting with the prompt store (PostgreSQL).
+  - Processing documents via the BluDeltaService REST API.
 
 ---
 
 ### **6. Current Limitations**
 
 1. **Voice Processing:**
-   - Client-side transcription not yet implemented
-   - Limited feedback during recording
+   - Client-side transcription integration is still a work-in-progress.
+   - Limited real-time feedback during voice recording.
 
-2. **File Processing:**
-   - Limited to text-based PDFs and images
-   - File size restrictions not yet implemented
+2. **Document Processing:**
+   - File size restrictions and support for non-text PDFs are not fully implemented.
+   - Custom prompt generation workflow is new and may require further testing.
 
 3. **Chat History:**
-   - No persistence between sessions
-   - No conversation export functionality
+   - Persistence between sessions and export functionality are pending.
+
+4. **Agent Workflow:**
+   - Multi-step reasoning and tool-calling (via smolagents) are newly integrated and may require further refinements and monitoring in production.
 
 ---
 
 ### **7. Next Steps**
 
 1. **Voice Integration:**
-   - Implement client-side Whisper integration
-   - Add real-time transcription feedback
+   - Complete client-side Whisper transcription.
+   - Enhance real-time transcription feedback and error handling.
 
-2. **File Handling:**
-   - Add file size limits and validation
-   - Implement progress indicators for large files
-   - Add support for more document types
+2. **Document Handling Enhancements:**
+   - Implement file size limits and validations.
+   - Extend support to additional document types.
+   - Optimize the custom prompt generation tool workflow.
 
 3. **Chat Enhancements:**
-   - Add conversation persistence
-   - Implement chat export functionality
-   - Add typing indicators
+   - Add conversation persistence and export functionality.
+   - Implement typing indicators and improved UX for multi-step interactions.
 
-4. **UI/UX Improvements:**
-   - Add loading states for all operations
-   - Implement better error visualizations
-   - Add accessibility features
+4. **Agent & UI/UX Improvements:**
+   - Refine the smolagents-based multi-step agent behavior.
+   - Add comprehensive logging and visualization of the agent’s reasoning steps.
+   - Improve error feedback and accessibility features.
 
 ---
 
 ### **8. Success Metrics**
 
 - **Performance:**
-  - Chat response time < 2 seconds
-  - File processing feedback within 500ms
-  - UI interactions < 100ms
-
+  - Chat response time < 2 seconds.
+  - File processing feedback within 500ms.
+  - UI interactions < 100ms.
 - **Reliability:**
-  - 99.9% uptime for chat services
-  - < 1% error rate in file processing
-  - Zero data loss in real-time communication
-
+  - 99.9% uptime for chat and document services.
+  - < 1% error rate in file and agent processing.
+  - Zero data loss in real-time communication.
 - **User Experience:**
-  - Smooth theme transitions
-  - Intuitive file handling
-  - Clear error messages
-  - Responsive across devices
+  - Smooth theme transitions and intuitive file handling.
+  - Clear, step-by-step visual feedback for agent operations.
+  - Responsive design across devices.
+  - Satisfactory performance of multi-step agent tasks and tool calls.
 
 ---
 
-This PRD reflects the current state of implementation and provides a clear roadmap for future development. The focus has shifted from document processing only to a full-featured chat application with document analysis capabilities.
+This updated PRD reflects the expanded scope of BluApp 3.1—adding intelligent, multi-step agent functionality using the smolagents framework, custom prompt generation, and enhanced document analysis via BluDeltaService. These improvements aim to deliver a richer, more responsive user experience while maintaining robust performance and reliability.

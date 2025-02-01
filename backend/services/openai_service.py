@@ -1,11 +1,11 @@
-import openai
+from openai import AsyncOpenAI
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
-# Set the OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
-if not openai.api_key:
+# Initialize the OpenAI client
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+if not client.api_key:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
 
 async def generate_chat_response(user_message: str, context: str = "") -> str:
@@ -31,11 +31,11 @@ async def generate_chat_response(user_message: str, context: str = "") -> str:
             "content": user_message
         })
 
-        response = await openai.ChatCompletion.acreate(
+        response = await client.chat.completions.create(
             model="gpt-4",
             messages=messages
         )
-        return response.choices[0].message['content']
+        return response.choices[0].message.content
     except Exception as e:
         raise Exception(f"Error generating chat response: {str(e)}")
 
@@ -44,7 +44,7 @@ async def generate_extraction_prompt(document_content: str, instruction_text: st
     Generate extraction prompt using GPT-4
     """
     try:
-        response = await openai.ChatCompletion.acreate(
+        response = await client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {
@@ -60,6 +60,6 @@ async def generate_extraction_prompt(document_content: str, instruction_text: st
                 }
             ]
         )
-        return response.choices[0].message['content']
+        return response.choices[0].message.content
     except Exception as e:
         raise Exception(f"Error generating prompt: {str(e)}") 
