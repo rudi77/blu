@@ -8,10 +8,9 @@ interface ProcessingStatus {
 }
 
 interface Message {
-  type: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   file?: File;
-  generatedPrompt?: string;
 }
 
 function App() {
@@ -54,10 +53,10 @@ function App() {
     
     websocketRef.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.status === 'success') {
+      if (data.status === 'error') {
         setMessages(prev => [...prev, {
-          type: 'assistant',
-          content: data.message
+          role: 'assistant',
+          content: `Error: ${data.message}`
         }]);
       }
     };
@@ -126,54 +125,70 @@ function App() {
     // For now, we'll just use the input text
     if (inputText) {
       setMessages(prev => [...prev, {
-        type: 'user',
+        role: 'user',
         content: inputText
       }]);
       setInputText('');
     }
   };
 
-  // Clear file preview after submission
   const handleSubmit = async () => {
-    if (!currentFile || !inputText) return;
+    if (!inputText) return;
+    if (isProcessing) return;
 
     setIsProcessing(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', currentFile);
-      formData.append('instruction_text', inputText);
-
-      // Add user message to chat history first
-      setMessages(prev => [...prev, {
-        type: 'user',
+      // Add user message to chat immediately
+      const userMessage: Message = {
+        role: 'user',
         content: inputText,
-        file: currentFile  // Include the file in the message
-      }]);
+        file: currentFile || undefined
+      };
+      setMessages(prev => [...prev, userMessage]);
 
-      const response = await fetch('/api/process', {
+      // Prepare the request
+      const requestBody: any = {
+        content: inputText,
+        role: 'user'
+      };
+
+      // If there's a file, include it
+      if (currentFile) {
+        const fileContent = await currentFile.arrayBuffer();
+        requestBody.file = {
+          content: Array.from(new Uint8Array(fileContent)),
+          type: currentFile.type,
+          name: currentFile.name
+        };
+      }
+
+      // Send to backend
+      const response = await fetch('/api/chat', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
       
       // Add assistant's response
       setMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Here is the generated prompt:',
-        generatedPrompt: data.generated_prompt
+        role: 'assistant',
+        content: data.response
       }]);
       
+      // Clear input
       setCurrentFile(null);
       setFilePreview(null);
       setInputText('');
     } catch (error) {
-      console.error('Error processing document:', error);
-      // Add error message to chat
+      console.error('Error in chat:', error);
       setMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Error: Failed to process the document. Please try again.'
+        role: 'assistant',
+        content: 'Error: Failed to process your message. Please try again.'
       }]);
     } finally {
       setIsProcessing(false);
@@ -214,16 +229,16 @@ function App() {
             <div
               key={index}
               className={`py-6 px-4 ${
-                message.type === 'assistant' 
+                message.role === 'assistant' 
                   ? 'bg-white dark:bg-gray-800' 
                   : 'bg-gray-50 dark:bg-gray-900'
               }`}
             >
               <div className="max-w-3xl mx-auto flex gap-4">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  message.type === 'assistant' ? 'bg-green-500' : 'bg-blue-500'
+                  message.role === 'assistant' ? 'bg-green-500' : 'bg-blue-500'
                 } text-white text-sm`}>
-                  {message.type === 'assistant' ? 'A' : 'U'}
+                  {message.role === 'assistant' ? 'A' : 'U'}
                 </div>
                 <div className="flex-1">
                   {message.file && (
@@ -255,12 +270,9 @@ function App() {
                       </div>
                     </div>
                   )}
-                  <p className="text-gray-800 dark:text-gray-200">{message.content}</p>
-                  {message.generatedPrompt && (
-                    <pre className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-md text-sm whitespace-pre-wrap text-gray-800 dark:text-gray-200 font-mono">
-                      {message.generatedPrompt}
-                    </pre>
-                  )}
+                  <div className="prose dark:prose-invert max-w-none">
+                    {message.content}
+                  </div>
                 </div>
               </div>
             </div>

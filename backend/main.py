@@ -1,12 +1,18 @@
 from fastapi import FastAPI, WebSocket, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
 import asyncio
 import io
 import PyPDF2
 from PIL import Image
 import pytesseract
-from backend.services.openai_service import generate_extraction_prompt
+from backend.services.openai_service import generate_chat_response, generate_extraction_prompt
+
+class ChatMessage(BaseModel):
+    content: str
+    role: str
+    file: Optional[dict] = None
 
 app = FastAPI(title="BluService", description="Backend service for BluDoc Integration Demo App")
 
@@ -58,6 +64,60 @@ async def extract_text_from_image(content: bytes) -> str:
         return text
     except Exception as e:
         raise Exception(f"Failed to extract text from image: {str(e)}")
+
+@app.post("/chat")
+async def chat_with_llm(message: ChatMessage):
+    """
+    Chat with the LLM
+    """
+    try:
+        # If there's a file, process it first
+        if message.file:
+            file_content = message.file.get("content", "")
+            file_type = message.file.get("type", "")
+            
+            if file_type.startswith('image/'):
+                document_text = await extract_text_from_image(file_content)
+            elif file_type == 'application/pdf':
+                document_text = await extract_text_from_pdf(file_content)
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Unsupported file format. Please upload a PDF or image file."
+                )
+            
+            # Generate extraction prompt for the document
+            prompt = await generate_extraction_prompt(
+                document_content=document_text,
+                instruction_text=message.content
+            )
+            
+            # Use the generated prompt as context for the chat
+            context = f"Document content: {document_text}\nGenerated prompt: {prompt}"
+            user_message = f"{message.content}\nPlease analyze this based on the document provided."
+        else:
+            # Regular chat without document
+            context = ""
+            user_message = message.content
+
+        # Generate chat response
+        response = await generate_chat_response(
+            user_message=user_message,
+            context=context
+        )
+
+        return {
+            "response": response
+        }
+
+    except Exception as e:
+        # Notify connected clients about errors only
+        for connection in active_connections:
+            await connection.send_json({
+                "status": "error",
+                "message": str(e)
+            })
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/process")
 async def process_document_with_instruction(

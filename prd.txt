@@ -1,30 +1,32 @@
 ### **Product Requirements Document (PRD) - Updated**
 
 ---
-#### **Product Name:** BluDoc Integration Demo App (Prototype)
+#### **Product Name:** BluApp - AI Chat Application
 
 #### **Date:** April 27, 2024
 
-#### **Version:** 2.0
+#### **Version:** 3.0
 
 ---
 
 ### **1. Objective**
 
 **Purpose:**
-The BluDoc Integration Demo App (Prototype) demonstrates how new document types can be onboarded seamlessly using a streamlined workflow. The focus is on rapid document processing, voice-based instructions, and automated prompt generation for document information extraction, showcasing the capabilities of LLM-based workflows.
+BluApp is an AI-powered chat application that combines document analysis capabilities with natural conversation. It provides a modern, responsive interface for users to interact with GPT-4, analyze documents, and receive real-time responses.
 
 **Key Objectives:**
-- **Rapid Onboarding:** Automatically integrate new document types in minutes.
-- **Voice-Based Instructions:** Enable users to provide feature extraction instructions via voice commands directly within the app.
-- **Automated Prompt Generation:** Utilize OpenAI GPT-4 to create prompts for feature extraction without the need for external document storage.
-- **Real-Time Status Updates:** Keep users informed about the processing progress through live updates.
-- **Functional UI:** Offer a straightforward and user-friendly web-based application, with plans to transition to an Android app upon validation.
+- **Intelligent Chat:** Real-time conversation with GPT-4 for natural interaction.
+- **Document Analysis:** Support for PDF and image processing with text extraction.
+- **Theme Customization:** Dark/Light mode support with system preference detection.
+- **Voice Input:** Enable users to provide voice input directly within the app.
+- **Real-Time Updates:** Provide immediate feedback through WebSocket connections.
+- **Responsive Design:** Offer a clean, modern interface that works across devices.
 
 **Prototype-Specific Goals:**
-- Deliver a working prototype in **2 weeks**.
-- Focus on **core functionalities** to ensure a smooth demonstration.
-- Minimize complexity in UI and workflows to emphasize technical capabilities.
+- Focus on core chat and document analysis functionality
+- Ensure smooth user experience with real-time updates
+- Implement robust error handling
+- Provide clear visual feedback for all operations
 
 ---
 
@@ -32,222 +34,159 @@ The BluDoc Integration Demo App (Prototype) demonstrates how new document types 
 
 The system consists of the following components:
 
-1. **BluApp (Web Application):**
-   - Captures user input (voice and documents) and interacts with the backend services.
-   - Sends the uploaded document and transcribed voice-to-text instructions to the **BluService**.
+1. **Frontend Application:**
+   - React-based web interface with TypeScript
+   - Real-time WebSocket communication
+   - Client-side file preview and management
+   - Theme management with system preference detection
+   - Voice input handling
 
-2. **OpenAI Whisper (Client-Side):**
-   - Transcribes voice commands into text within the frontend application.
-   - Eliminates the need for backend processing of audio files.
+2. **Backend Service:**
+   - FastAPI-based REST API and WebSocket server
+   - Document processing with OCR and PDF text extraction
+   - Integration with OpenAI GPT-4
+   - Real-time error handling and notifications
 
-3. **BluService (Central Backend Service):**
-   - Manages user requests and processes documents.
-   - Generates prompts using OpenAI GPT-4 directly, without storing documents externally.
-   - Communicates with the **Prompt Store** to save the generated prompts.
-   - Provides real-time status updates to the BluApp via WebSockets.
-
-4. **OpenAI GPT-4 (PromptGenerationAssistant):**
-   - Generates extraction prompts based on the uploaded document and user instructions.
-
-5. **BluDelta Prompt Store:**
-   - Stores generated prompts for later use by the BluDeltaService.
-
-6. **BluDeltaService:**
-   - An existing service that uses prompts to process documents and extract requested data.
+3. **OpenAI Integration:**
+   - GPT-4 for intelligent chat responses
+   - Context-aware document analysis
+   - Structured response generation
 
 ---
 
 ### **3. System Workflow**
 
-1. **User Interaction via BluApp:**
-   - The user uploads a document (screenshot or PDF) and provides voice-based feature extraction instructions.
-   - The voice command is transcribed to text using client-side **OpenAI Whisper** within the web application.
+1. **Chat Interaction:**
+   - User sends messages through the chat interface
+   - Messages are processed by GPT-4
+   - Responses are displayed in real-time with markdown support
 
-2. **Backend Processing via BluService:**
-   - The transcribed text and uploaded document are sent to the **BluService**.
-   - BluService extracts text from the document and forwards the data to **OpenAI GPT-4** for prompt generation.
-   - The generated prompt is saved in the **Prompt Store**.
+2. **Document Processing:**
+   - User uploads PDF or image files
+   - Backend extracts text using appropriate method (OCR/PDF parsing)
+   - Content is analyzed by GPT-4 with original context
+   - Results are presented in the chat interface
 
-3. **Real-Time Notifications:**
-   - BluService sends real-time updates (via WebSockets) to the BluApp about the processing status:
-     - Document upload success.
-     - Prompt creation in progress.
-     - Prompt stored successfully.
+3. **Theme Management:**
+   - System detects user's preferred theme
+   - Users can manually toggle between dark/light modes
+   - Preference is persisted across sessions
 
-4. **Prompt Utilization by BluDeltaService:**
-   - The generated prompt is stored in the **Prompt Store**.
-   - BluDeltaService retrieves the prompt for document information extraction.
+4. **Real-Time Updates:**
+   - WebSocket connection maintains real-time status
+   - Error messages are immediately displayed
+   - File processing progress is reflected in UI
 
 ---
 
 ### **4. Technical Stack**
 
-#### **Frontend (BluApp):**
-- **Platform:** Web (React)
+#### **Frontend:**
 - **Framework:** React with TypeScript
-- **UI Library:** Tailwind CSS
-- **Communication:**
-  - REST API for document upload and instructions.
-  - WebSockets for real-time updates.
+- **Styling:** Tailwind CSS with Typography plugin
+- **Icons:** Heroicons
+- **State Management:** React Context
+- **Real-time:** WebSocket client
+- **File Handling:** Client-side preview and upload
 
-#### **Backend (BluService):**
-- **Programming Language:** Python
+#### **Backend:**
 - **Framework:** FastAPI
+- **Document Processing:**
+  - PyTesseract for OCR
+  - PyPDF2 for PDF parsing
 - **Communication:**
-  - REST API for data exchange with BluApp and OpenAI APIs.
-  - WebSockets for real-time notifications.
-- **Storage:**
-  - **PostgreSQL** (Prompt Store)
-
-#### **OpenAI Integration:**
-- **Whisper:** Client-side transcription of voice input to text within the frontend application.
-- **GPT-4:** Backend service for prompt generation.
+  - REST API endpoints
+  - WebSocket server
+- **AI Integration:** OpenAI GPT-4 API
 
 ---
 
-### **5. Software Components**
+### **5. Features Implementation Status**
 
-#### **5.1. BluApp (Web Application):**
-- **Features:**
-  - **Document Upload:** Upload screenshots or PDFs for processing.
-  - **Voice Input:** Capture user instructions via voice using client-side Whisper.
-  - **Progress Tracking:** Display real-time updates on processing status.
-  - **Output Display:** Show generated prompts in JSON format.
+#### **5.1. Chat Interface:**
+- ✅ Real-time messaging
+- ✅ Markdown rendering
+- ✅ Message history
+- ✅ Auto-scrolling
+- ✅ Error handling
 
-- **Responsibilities:**
-  - Interface with OpenAI Whisper for voice transcription on the client-side.
-  - Communicate with the backend for document upload and processing.
-  - Display real-time status updates and generated prompts to the user.
+#### **5.2. Document Processing:**
+- ✅ PDF text extraction
+- ✅ Image OCR
+- ✅ File preview
+- ✅ Progress feedback
+- ✅ Error handling
 
-##### **5.1.1 OpenAI Whisper (Client-Side):**
-- **Function:** Transcribe user-provided voice commands into text within the frontend application.
-- **Input:** Voice command.
-- **Output:** Text instructions for feature extraction.
+#### **5.3. Theme Support:**
+- ✅ System preference detection
+- ✅ Manual theme switching
+- ✅ Persistent preferences
+- ✅ Dark mode optimization
 
-#### **5.2. BluService (Backend Service):**
-- **Features:**
-  - Manage user requests and process documents.
-  - Forward instructions and document content to OpenAI GPT-4 for prompt generation.
-  - Store generated prompts in the **Prompt Store**.
-  - Provide real-time updates to the BluApp via WebSockets.
-
-- **Responsibilities:**
-  - Handle voice-to-text data sent from the frontend.
-  - Interact with OpenAI GPT-4 for prompt creation.
-  - Save prompts in PostgreSQL for later use by BluDeltaService.
-
-#### **5.3. OpenAI GPT-4:**
-- **Function:** Generate extraction prompts based on the uploaded document and transcribed instructions.
-- **Input:** Document content and transcribed text instructions.
-- **Output:** Structured prompt for the Prompt Store.
-
-#### **5.4. BluDelta Prompt Store:**
-- **Function:** Store generated prompts.
-- **Integration:** Accessible by both BluService (for storing) and BluDeltaService (for retrieving).
-
-#### **5.5. BluDeltaService:**
-- **Function:** Use prompts from the Prompt Store for document information extraction.
+#### **5.4. Voice Input:**
+- ✅ Basic recording interface
+- 🟡 Transcription (WIP)
+- 🟡 Real-time feedback (WIP)
 
 ---
 
-### **6. Technical Details**
+### **6. Current Limitations**
 
-#### **6.1. Frontend Implementation:**
-- **Technology:** React with TypeScript and Tailwind CSS.
-- **Voice Transcription:** Utilize client-side libraries or APIs to implement Whisper-based transcription.
-- **WebSocket Integration:** Establish a WebSocket connection to receive real-time status updates from the backend.
-- **Form Handling:** Use multipart/form-data to send both the document and transcribed instructions in a single API call.
+1. **Voice Processing:**
+   - Client-side transcription not yet implemented
+   - Limited feedback during recording
 
-#### **6.2. Backend Implementation:**
-- **Technology:** FastAPI with Python.
-- **API Endpoint:**
-  - **POST /process:** Accepts a document file and instruction text, processes them with GPT-4, and returns the generated prompt.
-- **WebSocket Endpoint:**
-  - **/ws:** Sends real-time status updates to connected clients.
-- **LLM Integration:** Directly interact with OpenAI GPT-4 for prompt generation.
-- **Error Handling:** Provide clear error messages and handle unsupported file formats gracefully.
-- **Prompt Storage:** Save generated prompts in PostgreSQL for future access by BluDeltaService.
+2. **File Processing:**
+   - Limited to text-based PDFs and images
+   - File size restrictions not yet implemented
+
+3. **Chat History:**
+   - No persistence between sessions
+   - No conversation export functionality
 
 ---
 
-### **7. Success Criteria**
+### **7. Next Steps**
 
-- **Functionality:** All core features (document upload, client-side voice transcription, prompt generation, real-time updates) work seamlessly.
-- **Stability:** The app and backend should remain stable during the demo.
-- **Performance:** Real-time updates should have minimal latency.
-- **User Experience:** Simple and intuitive UI for demonstration purposes.
-- **Completion:** Deliver a functional prototype within **2 weeks**.
+1. **Voice Integration:**
+   - Implement client-side Whisper integration
+   - Add real-time transcription feedback
 
----
+2. **File Handling:**
+   - Add file size limits and validation
+   - Implement progress indicators for large files
+   - Add support for more document types
 
-### **8. Appendices**
+3. **Chat Enhancements:**
+   - Add conversation persistence
+   - Implement chat export functionality
+   - Add typing indicators
 
-#### **8.1. Workflow Diagram**
-
-```plaintext
-BluApp → OpenAI Whisper (Client-Side) → BluService → GPT-4 → Prompt Store → BluDeltaService
-```
-
-#### **8.2. Timeline**
-
-| **Day** | **Task**                                   |
-|---------|-------------------------------------------|
-| Day 1   | Finalize requirements, set up environment |
-| Days 2–7 | Backend development                      |
-| Days 3–10| Frontend development                      |
-| Days 8–12| Integration and testing                   |
-| Days 13–14| Demo preparation and testing             |
+4. **UI/UX Improvements:**
+   - Add loading states for all operations
+   - Implement better error visualizations
+   - Add accessibility features
 
 ---
 
-### **9. Conclusion**
+### **8. Success Metrics**
 
-This PRD outlines a streamlined and focused plan for building the BluDoc Integration Demo App (Prototype). The architecture leverages OpenAI's Whisper for client-side voice transcription and GPT-4 for creating extraction prompts, eliminating the need for external document storage. The app provides real-time updates, ensuring an engaging and impactful live demonstration. The implementation timeline is optimized to deliver a functional prototype within **2 weeks**.
+- **Performance:**
+  - Chat response time < 2 seconds
+  - File processing feedback within 500ms
+  - UI interactions < 100ms
 
----
+- **Reliability:**
+  - 99.9% uptime for chat services
+  - < 1% error rate in file processing
+  - Zero data loss in real-time communication
 
-### **Updates Based on Current Implementation**
-
-- **Removed Azure Blob Storage:** 
-  - The backend no longer stores documents in Azure Blob Storage. All document processing is handled directly by BluService, which interacts with GPT-4 to generate prompts.
-
-- **Client-Side Voice Transcription:**
-  - Voice transcription using OpenAI Whisper is now handled on the frontend, reducing backend load and simplifying the architecture.
-
-- **Simplified Backend Workflow:**
-  - The /process endpoint in BluService now directly processes the uploaded document and instruction text, generates a prompt with GPT-4, and returns it without storing the document externally.
-
-- **Prompt Storage:**
-  - Although the current backend implementation focuses on prompt generation, plans include storing the generated prompts in PostgreSQL for future retrieval by BluDeltaService.
-
-- **Real-Time Updates:**
-  - WebSocket integration remains to provide real-time status updates to the frontend, enhancing user experience during processing.
-
-- **Frontend Deployment:**
-  - The frontend is now structured as a separate React application with Tailwind CSS for styling, ensuring clear separation from the backend codebase.
+- **User Experience:**
+  - Smooth theme transitions
+  - Intuitive file handling
+  - Clear error messages
+  - Responsive across devices
 
 ---
 
-### **Next Steps**
-
-1. **Implement Prompt Storage:**
-   - Update BluService to store generated prompts in PostgreSQL.
-
-2. **Enhance Voice Transcription:**
-   - Integrate a client-side Whisper library or API to replace the simulated transcription.
-
-3. **Refine Error Handling:**
-   - Improve error messages and handling for various failure scenarios.
-
-4. **UI/UX Enhancements:**
-   - Polish the frontend interface for a more intuitive user experience.
-
-5. **Testing:**
-   - Conduct thorough unit and integration testing for both frontend and backend components.
-
-6. **Prepare for Android Transition:**
-   - Once the web application is validated, plan the transition to an Android-based BluApp using React Native.
-
----
-
-Let me know if you need any further adjustments or additional sections in the PRD!
+This PRD reflects the current state of implementation and provides a clear roadmap for future development. The focus has shifted from document processing only to a full-featured chat application with document analysis capabilities.
