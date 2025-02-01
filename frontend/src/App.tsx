@@ -26,6 +26,9 @@ function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Add thumbnail preview URL state
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -62,17 +65,31 @@ function App() {
     };
   }, []);
 
+  // Update handleFileSelect to create preview URL
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setCurrentFile(file);
-      setMessages(prev => [...prev, {
-        type: 'user',
-        content: 'Can you help me extract information from this document?',
-        file: file
-      }]);
+      
+      // Create preview URL for images
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setFilePreview(url);
+      } else if (file.type === 'application/pdf') {
+        // Use a PDF icon for PDFs
+        setFilePreview('/pdf-icon.svg'); // You'll need to add this icon to your public folder
+      }
     }
   };
+
+  // Cleanup preview URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (filePreview && filePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(filePreview);
+      }
+    };
+  }, [filePreview]);
 
   const handleRecordingStart = async () => {
     try {
@@ -114,6 +131,7 @@ function App() {
     }
   };
 
+  // Clear file preview after submission
   const handleSubmit = async () => {
     if (!currentFile || !inputText) return;
 
@@ -124,6 +142,13 @@ function App() {
       formData.append('file', currentFile);
       formData.append('instruction_text', inputText);
 
+      // Add user message to chat history first
+      setMessages(prev => [...prev, {
+        type: 'user',
+        content: inputText,
+        file: currentFile  // Include the file in the message
+      }]);
+
       const response = await fetch('/api/process', {
         method: 'POST',
         body: formData,
@@ -131,6 +156,7 @@ function App() {
 
       const data = await response.json();
       
+      // Add assistant's response
       setMessages(prev => [...prev, {
         type: 'assistant',
         content: 'Here is the generated prompt:',
@@ -138,9 +164,15 @@ function App() {
       }]);
       
       setCurrentFile(null);
+      setFilePreview(null);
       setInputText('');
     } catch (error) {
       console.error('Error processing document:', error);
+      // Add error message to chat
+      setMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Error: Failed to process the document. Please try again.'
+      }]);
     } finally {
       setIsProcessing(false);
     }
@@ -158,7 +190,7 @@ function App() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto py-3 px-4">
-          <h1 className="text-xl font-semibold text-gray-800">BluApp</h1>
+          <h1 className="text-xl font-semibold text-gray-800" align="center">BluApp</h1>
         </div>
       </div>
 
@@ -180,8 +212,32 @@ function App() {
                 </div>
                 <div className="flex-1">
                   {message.file && (
-                    <div className="mb-2 p-2 bg-gray-100 rounded-md inline-block">
-                      <p className="text-sm text-gray-600">📎 {message.file.name}</p>
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 p-2 bg-gray-100 rounded-md inline-block">
+                        <div className="w-12 h-12 rounded-md overflow-hidden border border-gray-200">
+                          {message.file.type.startsWith('image/') ? (
+                            <img
+                              src={URL.createObjectURL(message.file)}
+                              alt="Uploaded file"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <img
+                              src="/pdf-icon.svg"
+                              alt="PDF file"
+                              className="w-full h-full p-2"
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {message.file.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(message.file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                   <p className="text-gray-800">{message.content}</p>
@@ -202,6 +258,41 @@ function App() {
       <div className="border-t border-gray-200 bg-white">
         <div className="max-w-3xl mx-auto p-4">
           <div className="border rounded-lg bg-white shadow-sm">
+            {/* File Preview Area */}
+            {filePreview && (
+              <div className="p-4 border-b">
+                <div className="flex items-center gap-2">
+                  <div className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200">
+                    <img
+                      src={filePreview}
+                      alt="File preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={() => {
+                        setCurrentFile(null);
+                        setFilePreview(null);
+                      }}
+                      className="absolute top-0 right-0 p-1 bg-gray-800/50 hover:bg-gray-800/75 text-white rounded-bl"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {currentFile?.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {(currentFile?.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Input Area */}
             <div className="flex items-end gap-2 p-2">
               <textarea
                 ref={textareaRef}
