@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Backend: FastAPI",
+            "name": "Backend",
             "type": "python",
             "request": "launch",
             "module": "uvicorn",
@@ -12,12 +12,12 @@
                 "--port",
                 "8080"
             ],
-            "jinja": true,
-            "justMyCode": true,
+            "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
-            "cwd": "${workspaceFolder}"
+            "jinja": true,
+            "justMyCode": true
         },
         {
             "name": "Frontend: Vite Dev Server",
@@ -47,7 +47,7 @@
     "compounds": [
         {
             "name": "Backend + Frontend",
-            "configurations": ["Backend: FastAPI", "Frontend: Vite Dev Server"],
+            "configurations": ["Backend", "Frontend: Vite Dev Server"],
             "presentation": {
                 "hidden": false,
                 "group": "BluDoc",

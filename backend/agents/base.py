@@ -1,7 +1,8 @@
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, AsyncGenerator
 from smolagents import CodeAgent, ToolCallingAgent, Tool, LiteLLMModel
 from smolagents.memory import ActionStep
 from pydantic import BaseModel
+import asyncio
 
 class AgentConfig(BaseModel):
     """Configuration for BluApp agents"""
@@ -10,6 +11,10 @@ class AgentConfig(BaseModel):
     max_steps: int = 6
     planning_interval: Optional[int] = None
     verbosity_level: int = 1
+    
+    model_config = {
+        'protected_namespaces': ()  # This fixes the warning
+    }
 
 class BluAppAgent:
     """
@@ -47,7 +52,7 @@ class BluAppAgent:
         self, 
         message: str,
         context: Optional[Dict] = None
-    ) -> Union[str, Dict]:
+    ) -> AsyncGenerator[ActionStep, None]:
         """
         Process a user message through the agent.
         
@@ -55,27 +60,36 @@ class BluAppAgent:
             message: The user's message
             context: Optional context like document info
             
-        Returns:
-            Agent response (str) or processed result (dict)
+        Yields:
+            ActionStep objects as the agent processes the message
         """
         # Add context to agent state if provided
         if context:
             self.agent.state.update(context)
 
-        # Run agent
-        result = self.agent.run(message)
-        
-        # Store in chat history
+        # Store user message
         self.chat_history.append({
             "role": "user",
             "content": message
         })
-        self.chat_history.append({
-            "role": "assistant", 
-            "content": str(result)
-        })
 
-        return result
+        # Run agent in a separate thread to not block
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.agent.run, message)
+        
+        # Get steps from memory
+        steps = self.agent.memory.steps
+        
+        # Yield each step
+        for step in steps:
+            yield step
+            
+        # Store final answer in chat history
+        if result:
+            self.chat_history.append({
+                "role": "assistant",
+                "content": str(result)
+            })
 
     def get_agent_logs(self) -> List[ActionStep]:
         """Get the agent's execution logs"""

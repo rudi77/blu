@@ -1,41 +1,31 @@
-from sqlalchemy import Column, String, Text, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from ..config import get_settings
-from typing import Optional
-
-Base = declarative_base()
-
-class Prompt(Base):
-    __tablename__ = "prompts"
-    
-    doc_type = Column(String, primary_key=True)
-    prompt_text = Column(Text, nullable=False)
+from typing import Optional, Dict
 
 class PromptStore:
+    """Simple in-memory prompt store implementation"""
+    
     def __init__(self):
-        settings = get_settings()
-        self.engine = create_engine(settings.database_url)
-        Base.metadata.create_all(self.engine)
-        self.Session = sessionmaker(bind=self.engine)
+        self._prompts: Dict[str, str] = {}
     
     async def store_prompt(self, doc_type: str, prompt: str) -> bool:
-        session = self.Session()
+        """Store a prompt in memory"""
         try:
-            prompt_obj = Prompt(doc_type=doc_type, prompt_text=prompt)
-            session.merge(prompt_obj)
-            session.commit()
+            self._prompts[doc_type] = prompt
             return True
-        except Exception:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+        except Exception as e:
+            print(f"Error storing prompt: {e}")
+            return False
             
     async def get_prompt(self, doc_type: str) -> Optional[str]:
-        session = self.Session()
-        try:
-            prompt = session.query(Prompt).filter_by(doc_type=doc_type).first()
-            return prompt.prompt_text if prompt else None
-        finally:
-            session.close() 
+        """Retrieve a prompt from memory"""
+        return self._prompts.get(doc_type)
+    
+    def clear(self):
+        """Clear all stored prompts"""
+        self._prompts.clear()
+
+# Create a singleton instance
+prompt_store = PromptStore()
+
+# Export the store_prompt function for convenience
+async def store_prompt(doc_type: str, prompt: str) -> bool:
+    return await prompt_store.store_prompt(doc_type, prompt) 

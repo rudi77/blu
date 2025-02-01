@@ -1,10 +1,10 @@
 from typing import Optional, Dict
 from smolagents import tool
 from ..services.bludelta_service import BluDeltaService
-from ..database.prompt_store import PromptStore
+from ..database.prompt_store import prompt_store  # Import the singleton instance
 
+# Create singleton instances
 bludelta_service = BluDeltaService()
-prompt_store = PromptStore()
 
 @tool
 async def generate_prompt(doc_type: str, context: Optional[Dict] = None) -> str:
@@ -12,37 +12,42 @@ async def generate_prompt(doc_type: str, context: Optional[Dict] = None) -> str:
     Generate a custom prompt for a specific document type.
     
     Args:
-        doc_type: Type of document (e.g. invoice, receipt, contract)
-        context: Optional additional context about the document
+        doc_type: Type of document to generate prompt for
+        context: Optional context information
     """
-    # First check if we have a stored prompt for this type
-    stored_prompt = await prompt_store.get_prompt(doc_type)
-    if stored_prompt:
-        if context:
-            return stored_prompt.format(**context)
-        return stored_prompt
+    # First check if we have a stored prompt
+    existing_prompt = await prompt_store.get_prompt(doc_type)
+    if existing_prompt:
+        return existing_prompt
         
-    # Generate new prompt if none exists
-    base_prompt = f"You are analyzing a {doc_type}. Extract all relevant information."
-    if context:
-        base_prompt += f"\nAdditional context: {context}"
-    return base_prompt
+    # Generate new prompt based on document type
+    base_prompt = "Please analyze the following document"
+    if doc_type == "invoice":
+        prompt = f"{base_prompt} and extract: date, invoice number, total amount, and line items."
+    elif doc_type == "receipt":
+        prompt = f"{base_prompt} and extract: date, merchant name, total amount, and items purchased."
+    else:
+        prompt = f"{base_prompt} and provide a detailed summary."
+        
+    # Store the generated prompt
+    await prompt_store.store_prompt(doc_type, prompt)
+    return prompt
 
-@tool 
+@tool
 async def analyze_document(doc_id: str, prompt: str) -> Dict:
     """
-    Send document to BluDeltaService for analysis.
+    Analyze a document using BluDelta service.
     
     Args:
-        doc_id: ID of uploaded document
-        prompt: Custom prompt to use for analysis
+        doc_id: Document ID to analyze
+        prompt: Prompt to use for analysis
     """
     return await bludelta_service.analyze_document(doc_id, prompt)
 
 @tool
 async def store_prompt(doc_type: str, prompt: str) -> bool:
     """
-    Store a generated prompt in the prompt store.
+    Store a custom prompt for future use.
     
     Args:
         doc_type: Type of document
