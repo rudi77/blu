@@ -1,21 +1,47 @@
 import { useState, useEffect, useRef } from 'react';
+import { PaperAirplaneIcon, MicrophoneIcon, StopIcon } from '@heroicons/react/24/solid';
 
 interface ProcessingStatus {
   status: 'success' | 'error';
   message: string;
-  document_url?: string;
+}
+
+interface Message {
+  type: 'user' | 'assistant';
+  content: string;
+  file?: File;
+  generatedPrompt?: string;
 }
 
 function App() {
-  const [file, setFile] = useState<File | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [transcribedText, setTranscribedText] = useState('');
-  const [status, setStatus] = useState<ProcessingStatus | null>(null);
-  const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [inputText, setInputText] = useState('');
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'inherit';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [inputText]);
+
+  // Scroll to bottom when messages update
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -23,7 +49,12 @@ function App() {
     
     websocketRef.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      setStatus(data);
+      if (data.status === 'success') {
+        setMessages(prev => [...prev, {
+          type: 'assistant',
+          content: data.message
+        }]);
+      }
     };
 
     return () => {
@@ -31,16 +62,19 @@ function App() {
     };
   }, []);
 
-  // Handle file selection
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setCurrentFile(file);
+      setMessages(prev => [...prev, {
+        type: 'user',
+        content: 'Can you help me extract information from this document?',
+        file: file
+      }]);
     }
   };
 
-  // Handle voice recording
-  const startRecording = async () => {
+  const handleRecordingStart = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -52,7 +86,7 @@ function App() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        await transcribeAudio(audioBlob);
+        await handleTranscription(audioBlob);
       };
 
       mediaRecorderRef.current = mediaRecorder;
@@ -63,37 +97,32 @@ function App() {
     }
   };
 
-  const stopRecording = () => {
+  const handleRecordingStop = () => {
     mediaRecorderRef.current?.stop();
     setIsRecording(false);
   };
 
-  // Transcribe audio using Whisper
-  const transcribeAudio = async (audioBlob: Blob) => {
-    try {
-      // TODO: Implement client-side Whisper transcription
-      // For now, we'll just simulate transcription
-      setTranscribedText('Sample transcribed text...');
-    } catch (error) {
-      console.error('Error transcribing audio:', error);
+  const handleTranscription = async (audioBlob: Blob) => {
+    // TODO: Implement actual Whisper transcription
+    // For now, we'll just use the input text
+    if (inputText) {
+      setMessages(prev => [...prev, {
+        type: 'user',
+        content: inputText
+      }]);
+      setInputText('');
     }
   };
 
-  // Handle form submission
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    
-    if (!file || !transcribedText) {
-      alert('Please select a file and provide voice instructions');
-      return;
-    }
+  const handleSubmit = async () => {
+    if (!currentFile || !inputText) return;
 
     setIsProcessing(true);
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('instruction_text', transcribedText);
+      formData.append('file', currentFile);
+      formData.append('instruction_text', inputText);
 
       const response = await fetch('/api/process', {
         method: 'POST',
@@ -101,7 +130,15 @@ function App() {
       });
 
       const data = await response.json();
-      setGeneratedPrompt(data.generated_prompt);
+      
+      setMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Here is the generated prompt:',
+        generatedPrompt: data.generated_prompt
+      }]);
+      
+      setCurrentFile(null);
+      setInputText('');
     } catch (error) {
       console.error('Error processing document:', error);
     } finally {
@@ -109,98 +146,119 @@ function App() {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
-      <div className="relative py-3 sm:max-w-xl sm:mx-auto">
-        <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-          <div className="max-w-md mx-auto">
-            <div className="divide-y divide-gray-200">
-              <div className="py-8 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
-                <h1 className="text-2xl font-bold mb-8">BluDoc Integration Demo</h1>
-                
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* File Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Upload Document
-                    </label>
-                    <input
-                      type="file"
-                      accept=".pdf,image/*"
-                      onChange={handleFileChange}
-                      className="mt-1 block w-full"
-                    />
-                  </div>
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-3xl mx-auto py-3 px-4">
+          <h1 className="text-xl font-semibold text-gray-800">BluApp</h1>
+        </div>
+      </div>
 
-                  {/* Voice Recording */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Voice Instructions
-                    </label>
-                    <div className="mt-1 flex items-center space-x-4">
-                      <button
-                        type="button"
-                        onClick={isRecording ? stopRecording : startRecording}
-                        className={`px-4 py-2 rounded-md ${
-                          isRecording
-                            ? 'bg-red-500 hover:bg-red-600'
-                            : 'bg-blue-500 hover:bg-blue-600'
-                        } text-white`}
-                      >
-                        {isRecording ? 'Stop Recording' : 'Start Recording'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Transcribed Text */}
-                  {transcribedText && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Transcribed Instructions
-                      </label>
-                      <div className="mt-1 p-2 border rounded-md">
-                        {transcribedText}
-                      </div>
+      {/* Messages Container */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`py-6 px-4 ${
+                message.type === 'assistant' ? 'bg-white' : 'bg-gray-50'
+              }`}
+            >
+              <div className="max-w-3xl mx-auto flex gap-4">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  message.type === 'assistant' ? 'bg-green-500' : 'bg-blue-500'
+                } text-white text-sm`}>
+                  {message.type === 'assistant' ? 'A' : 'U'}
+                </div>
+                <div className="flex-1">
+                  {message.file && (
+                    <div className="mb-2 p-2 bg-gray-100 rounded-md inline-block">
+                      <p className="text-sm text-gray-600">📎 {message.file.name}</p>
                     </div>
                   )}
+                  <p className="text-gray-800">{message.content}</p>
+                  {message.generatedPrompt && (
+                    <pre className="mt-4 p-4 bg-gray-100 rounded-md text-sm whitespace-pre-wrap text-gray-800 font-mono">
+                      {message.generatedPrompt}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
 
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={isProcessing || !file || !transcribedText}
-                    className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Processing...' : 'Process Document'}
-                  </button>
-                </form>
-
-                {/* Status Messages */}
-                {status && (
-                  <div
-                    className={`mt-4 p-4 rounded-md ${
-                      status.status === 'success'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {status.message}
-                  </div>
-                )}
-
-                {/* Generated Prompt */}
-                {generatedPrompt && (
-                  <div className="mt-6">
-                    <h2 className="text-lg font-medium text-gray-900">
-                      Generated Prompt
-                    </h2>
-                    <div className="mt-2 p-4 bg-gray-50 rounded-md">
-                      <pre className="whitespace-pre-wrap">{generatedPrompt}</pre>
-                    </div>
-                  </div>
-                )}
+      {/* Input Area */}
+      <div className="border-t border-gray-200 bg-white">
+        <div className="max-w-3xl mx-auto p-4">
+          <div className="border rounded-lg bg-white shadow-sm">
+            <div className="flex items-end gap-2 p-2">
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type your instructions..."
+                className="flex-1 max-h-36 p-2 focus:outline-none resize-none"
+                style={{ minHeight: '44px' }}
+              />
+              <div className="flex items-center gap-2 px-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept=".pdf,image/*"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 text-gray-500 hover:text-gray-700"
+                  title="Attach file"
+                >
+                  📎
+                </button>
+                <button
+                  onClick={isRecording ? handleRecordingStop : handleRecordingStart}
+                  className={`p-2 rounded-full ${
+                    isRecording ? 'text-red-500' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  title={isRecording ? 'Stop recording' : 'Start recording'}
+                >
+                  {isRecording ? (
+                    <StopIcon className="h-5 w-5" />
+                  ) : (
+                    <MicrophoneIcon className="h-5 w-5" />
+                  )}
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={isProcessing || !currentFile || !inputText}
+                  className={`p-2 rounded-full ${
+                    isProcessing || !currentFile || !inputText
+                      ? 'text-gray-400'
+                      : 'text-blue-500 hover:text-blue-600'
+                  }`}
+                  title="Send message"
+                >
+                  <PaperAirplaneIcon className="h-5 w-5" />
+                </button>
               </div>
             </div>
           </div>
+          <p className="mt-2 text-xs text-center text-gray-500">
+            Press Enter to send, Shift + Enter for new line
+          </p>
         </div>
       </div>
     </div>

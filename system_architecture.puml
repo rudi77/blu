@@ -1,0 +1,47 @@
+@startuml BluDoc Integration Demo Architecture
+
+!define RECTANGLE class
+
+skinparam componentStyle rectangle
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+}
+
+cloud "Client Browser" {
+    [BluApp\n(React + TypeScript)] as frontend
+    [OpenAI Whisper\n(Client-Side)] as whisper
+}
+
+rectangle "Backend Services" {
+    [BluService\n(FastAPI)] as bluservice
+    [OpenAI GPT-4] as gpt4
+    database "PostgreSQL\n(Prompt Store)" as db
+    [BluDeltaService] as bludelta
+}
+
+' Connections
+frontend --> whisper : 1. Voice input
+whisper --> frontend : 2. Transcribed text
+frontend --> bluservice : 3. Send document + instructions
+bluservice --> gpt4 : 4. Request prompt generation
+gpt4 --> bluservice : 5. Return generated prompt
+bluservice --> db : 6. Store prompt
+bluservice <--> frontend : 7. WebSocket updates
+bludelta --> db : 8. Retrieve prompts
+
+note right of frontend
+  Web application using:
+  - React
+  - TypeScript
+  - Tailwind CSS
+end note
+
+note right of bluservice
+  Backend service using:
+  - Python
+  - FastAPI
+  - WebSockets
+end note
+
+@enduml
