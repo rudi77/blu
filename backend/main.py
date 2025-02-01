@@ -4,6 +4,8 @@ from typing import List
 import asyncio
 import io
 import PyPDF2
+from PIL import Image
+import pytesseract
 from backend.services.openai_service import generate_extraction_prompt
 
 app = FastAPI(title="BluService", description="Backend service for BluDoc Integration Demo App")
@@ -36,17 +38,26 @@ async def extract_text_from_pdf(content: bytes) -> str:
     Extract text content from a PDF file
     """
     try:
-        # Create a PDF reader object
         pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
-        
-        # Extract text from all pages
         text = ""
         for page in pdf_reader.pages:
             text += page.extract_text() + "\n"
-        
         return text
     except Exception as e:
         raise Exception(f"Failed to extract text from PDF: {str(e)}")
+
+async def extract_text_from_image(content: bytes) -> str:
+    """
+    Extract text content from an image using OCR
+    """
+    try:
+        # Open image using PIL
+        image = Image.open(io.BytesIO(content))
+        # Use pytesseract to extract text
+        text = pytesseract.image_to_string(image)
+        return text
+    except Exception as e:
+        raise Exception(f"Failed to extract text from image: {str(e)}")
 
 @app.post("/process")
 async def process_document_with_instruction(
@@ -60,18 +71,16 @@ async def process_document_with_instruction(
         # Read file content
         content = await file.read()
         
-        # Extract text from PDF
+        # Extract text based on file type
         if file.filename.lower().endswith('.pdf'):
             document_text = await extract_text_from_pdf(content)
+        elif file.content_type.startswith('image/'):
+            document_text = await extract_text_from_image(content)
         else:
-            # For non-PDF files, try UTF-8 decoding
-            try:
-                document_text = content.decode('utf-8')
-            except UnicodeDecodeError:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Unsupported file format. Please upload a PDF or text file."
-                )
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported file format. Please upload a PDF or image file."
+            )
         
         # Generate extraction prompt using GPT-4
         prompt = await generate_extraction_prompt(

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { PaperAirplaneIcon, MicrophoneIcon, StopIcon } from '@heroicons/react/24/solid';
+import { PaperAirplaneIcon, MicrophoneIcon, StopIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
+import { useTheme } from './contexts/ThemeContext';
 
 interface ProcessingStatus {
   status: 'success' | 'error';
@@ -14,6 +15,7 @@ interface Message {
 }
 
 function App() {
+  const { theme, toggleTheme } = useTheme();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -186,22 +188,35 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto py-3 px-4">
-          <h1 className="text-xl font-semibold text-gray-800" align="center">BluApp</h1>
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-3xl mx-auto py-3 px-4 flex justify-between items-center">
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-white" text-center>BluApp</h1>
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? (
+              <MoonIcon className="h-5 w-5 text-gray-600" />
+            ) : (
+              <SunIcon className="h-5 w-5 text-gray-300" />
+            )}
+          </button>
         </div>
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto dark:bg-gray-900">
         <div className="max-w-3xl mx-auto">
           {messages.map((message, index) => (
             <div
               key={index}
               className={`py-6 px-4 ${
-                message.type === 'assistant' ? 'bg-white' : 'bg-gray-50'
+                message.type === 'assistant' 
+                  ? 'bg-white dark:bg-gray-800' 
+                  : 'bg-gray-50 dark:bg-gray-900'
               }`}
             >
               <div className="max-w-3xl mx-auto flex gap-4">
@@ -213,7 +228,7 @@ function App() {
                 <div className="flex-1">
                   {message.file && (
                     <div className="mb-4">
-                      <div className="flex items-center gap-2 p-2 bg-gray-100 rounded-md inline-block">
+                      <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-md inline-block">
                         <div className="w-12 h-12 rounded-md overflow-hidden border border-gray-200">
                           {message.file.type.startsWith('image/') ? (
                             <img
@@ -240,9 +255,9 @@ function App() {
                       </div>
                     </div>
                   )}
-                  <p className="text-gray-800">{message.content}</p>
+                  <p className="text-gray-800 dark:text-gray-200">{message.content}</p>
                   {message.generatedPrompt && (
-                    <pre className="mt-4 p-4 bg-gray-100 rounded-md text-sm whitespace-pre-wrap text-gray-800 font-mono">
+                    <pre className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-md text-sm whitespace-pre-wrap text-gray-800 dark:text-gray-200 font-mono">
                       {message.generatedPrompt}
                     </pre>
                   )}
@@ -255,9 +270,9 @@ function App() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white">
+      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <div className="max-w-3xl mx-auto p-4">
-          <div className="border rounded-lg bg-white shadow-sm">
+          <div className="border dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-sm">
             {/* File Preview Area */}
             {filePreview && (
               <div className="p-4 border-b">
@@ -347,7 +362,7 @@ function App() {
               </div>
             </div>
           </div>
-          <p className="mt-2 text-xs text-center text-gray-500">
+          <p className="mt-2 text-xs text-center text-gray-500 dark:text-gray-400">
             Press Enter to send, Shift + Enter for new line
           </p>
         </div>
