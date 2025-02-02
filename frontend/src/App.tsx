@@ -133,7 +133,7 @@ function App() {
   };
 
   const handleSubmit = async () => {
-    if (!inputText) return;
+    if (!inputText && !currentFile) return;
     if (isProcessing) return;
 
     setIsProcessing(true);
@@ -149,7 +149,7 @@ function App() {
 
       // Prepare the request
       const requestBody: any = {
-        content: inputText,
+        content: inputText || "Please analyze this document",
         role: 'user'
       };
 
@@ -172,6 +172,10 @@ function App() {
         body: JSON.stringify(requestBody),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       
       // Add assistant's response
@@ -180,10 +184,16 @@ function App() {
         content: data.response
       }]);
       
-      // Clear input
+      // Clear input and file only after successful submission
       setCurrentFile(null);
       setFilePreview(null);
       setInputText('');
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
     } catch (error) {
       console.error('Error in chat:', error);
       setMessages(prev => [...prev, {
@@ -361,9 +371,9 @@ function App() {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={isProcessing || !currentFile || !inputText}
+                  disabled={isProcessing || (!currentFile && !inputText)}
                   className={`p-2 rounded-full ${
-                    isProcessing || !currentFile || !inputText
+                    isProcessing || (!currentFile && !inputText)
                       ? 'text-gray-400'
                       : 'text-blue-500 hover:text-blue-600'
                   }`}
