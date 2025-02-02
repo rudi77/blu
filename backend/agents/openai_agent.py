@@ -1,6 +1,7 @@
 from openai import AsyncOpenAI
 import json
 from typing import Dict, Optional
+from ..telemetry.openai_metrics import trace_openai_request
 
 # Define function definitions to be passed to the Chat API.
 # Here we define a function "analyze_document" that can be called by the model.
@@ -43,6 +44,26 @@ class OpenAIAgent:
         # Initialize the async client from OpenAI's new API
         self.async_client = AsyncOpenAI(api_key=api_key)
         self.system_prompt = system_prompt or "You are a helpful assistant."
+    
+    @trace_openai_request
+    async def _call_openai(self, messages, **kwargs):
+        """Make an OpenAI API call with telemetry."""
+        return await self.async_client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            tools=FUNCTION_DEFINITIONS,
+            tool_choice="auto",
+            **kwargs
+        )
+    
+    async def get_completion(self, messages, **kwargs):
+        """Get a completion from OpenAI with telemetry."""
+        try:
+            response = await self._call_openai(messages, **kwargs)
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Error getting completion: {str(e)}")
+            raise
     
     async def process_message(self, message: str, context: Optional[Dict] = None) -> str:
         """

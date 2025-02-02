@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+import os
 
 class Settings(BaseSettings):
     """Application settings"""
@@ -18,8 +19,15 @@ class Settings(BaseSettings):
     max_steps: int = 6
     planning_interval: int = 2
     
+    # OpenTelemetry Configuration
+    otel_exporter_otlp_endpoint: str = "http://localhost:6006/v1/traces"
+    otel_service_name: str = "bluapp-backend"
+    phoenix_collector_endpoint: str = "http://localhost:6006"
+    
     class Config:
         env_file = ".env"
+        env_prefix = ""
+        case_sensitive = False
 
 @lru_cache()
 def get_settings() -> Settings:
