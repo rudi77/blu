@@ -25,3 +25,5 @@ build/
 
 # Generated projects
 projects/ 
+
+node_modules/

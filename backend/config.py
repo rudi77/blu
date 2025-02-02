@@ -11,10 +11,10 @@ class Settings(BaseSettings):
     bludelta_api_key: str = ""
     
     # Database
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/blu"
+    database_url: str = "postgresql://postgres:postgres@localhost:5432/bludelta"
     
     # Agent
-    default_model: str = "gpt-4"
+    default_model: str = "gpt-4o-mini"
     max_steps: int = 6
     planning_interval: int = 2
     
