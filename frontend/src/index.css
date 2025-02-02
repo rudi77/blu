@@ -1,3 +1,22 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+/* Add custom styles for markdown content */
+.prose pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.prose code {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-weight: 400;
+}
+
+.dark .prose code {
+  background-color: #374151;
+} 

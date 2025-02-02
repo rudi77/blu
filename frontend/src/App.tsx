@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { PaperAirplaneIcon, MicrophoneIcon, StopIcon, SunIcon, MoonIcon } from '@heroicons/react/24/solid';
 import { useTheme } from './contexts/ThemeContext';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface ProcessingStatus {
   status: 'success' | 'error';
@@ -49,7 +53,7 @@ function App() {
 
   // Initialize WebSocket connection
   useEffect(() => {
-    websocketRef.current = new WebSocket('ws://localhost:5173/ws');
+    websocketRef.current = new WebSocket('ws://localhost:8080/ws');
     
     websocketRef.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -164,7 +168,7 @@ function App() {
       }
 
       // Send to backend
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -281,7 +285,35 @@ function App() {
                     </div>
                   )}
                   <div className="prose dark:prose-invert max-w-none">
-                    {message.content}
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({ node, inline, className, children, ...props }) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          const language = match ? match[1] : '';
+                          
+                          if (!inline && language) {
+                            return (
+                              <SyntaxHighlighter
+                                style={oneDark}
+                                language={language}
+                                PreTag="div"
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            );
+                          }
+                          
+                          return (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          );
+                        }
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
                   </div>
                 </div>
               </div>

@@ -31,46 +31,10 @@ FUNCTION_DEFINITIONS = [
 async def analyze_document_func(doc_content: str, instruction: str) -> str:
     """
     Local implementation of the analyze_document function.
-    Returns the analysis with properly formatted JSON code block.
+    In production, you might call BluDeltaService or perform more advanced processing.
+    For demo, we return a dummy analysis.
     """
-    try:
-        # Create a structured analysis
-        analysis = {
-            "company_name": "PH Charlottenstr. GmbH",
-            "company_address": "Charlottenstrake, 40217 Dusseldorf",
-            "tax_number": "DE106/5721/5901",
-            "invoice_date_and_time": "28.04.23 15:29",
-            "invoice_number": "059711",
-            "short_parking_ticket_number": "03017",
-            "parking_period": {
-                "start": "27.04.23 18:45",
-                "end": "28.04.23 15:29"
-            },
-            "payment": {
-                "amount_gross": "€14,00",
-                "amount_net": "€11,76",
-                "tax": "19% €2,24",
-                "method": "Card payment(girocagd)"
-            },
-            "transaction_detail": {
-                "terminal_id": "61557053",
-                "ta_number": "161354",
-                "receipt_number": "8109",
-                "contactless_chip": True,
-                "vu_number": "C8COD57053",
-                "authorization_number": "960803",
-                "authorization_response_code": "00"
-            }
-        }
-        
-        # Convert to JSON string with proper formatting
-        formatted_json = json.dumps(analysis, indent=2, ensure_ascii=False)
-        
-        # Return without any string escaping
-        return f"```json\n{formatted_json}\n```"
-        
-    except Exception as e:
-        return f"Error analyzing document: {str(e)}"
+    return f"Analyzed document based on instruction: '{instruction}'. Document excerpt: {doc_content[:100]}..."
 
 class OpenAIAgent:
     def __init__(self, model_name: str, api_key: str, system_prompt: Optional[str] = None):
@@ -113,34 +77,46 @@ class OpenAIAgent:
             tool_call = message_obj.tool_calls[0]
             tool_name = tool_call.function.name
             
+            try:
+                tool_args = json.loads(tool_call.function.arguments)
+            except Exception:
+                tool_args = {}
+            
             if tool_name == "analyze_document":
-                try:
-                    tool_args = json.loads(tool_call.function.arguments)
-                    func_result = await analyze_document_func(
-                        tool_args.get("doc_content", ""),
-                        tool_args.get("instruction", "")
-                    )
-                    
-                    # Add the function result to messages
-                    messages.append({
-                        "role": "tool",
-                        "content": func_result,
-                        "tool_call_id": tool_call.id
-                    })
-                    
-                    # Return the function result directly since it's already formatted
-                    return func_result
-                    
-                except Exception as e:
-                    return f"Error processing document: {str(e)}"
+                doc_content = tool_args.get("doc_content", "")
+                instruction = tool_args.get("instruction", "")
+                # Execute the local function.
+                func_result = await analyze_document_func(doc_content, instruction)
+                
+                # Add the function call message and its result to the conversation.
+                messages.append({
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_name,
+                                "arguments": json.dumps(tool_args)
+                            }
+                        }
+                    ]
+                })
+                messages.append({
+                    "role": "tool",
+                    "content": func_result,
+                    "tool_call_id": tool_call.id
+                })
+                
+                # Re-call the API to get the final answer.
+                second_response = await self.async_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages
+                )
+                return second_response.choices[0].message.content or ""
+            else:
+                return f"Unknown tool call: {tool_name}"
         else:
-            # For non-tool responses, check if it's JSON and format accordingly
-            content = message_obj.content or ""
-            if content.strip().startswith('{') or content.strip().startswith('['):
-                try:
-                    parsed = json.loads(content)
-                    formatted_json = json.dumps(parsed, indent=2, ensure_ascii=False)
-                    return f"```json\n{formatted_json}\n```"
-                except json.JSONDecodeError:
-                    return content
-            return content 
+            # No tool was called. Return the assistant's reply.
+            return message_obj.content or "" 
